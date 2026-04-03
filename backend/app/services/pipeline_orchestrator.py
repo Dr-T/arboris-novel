@@ -806,6 +806,10 @@ class PipelineOrchestrator:
         try:
             parsed_json = json.loads(content)
             extracted_text = self._extract_text(parsed_json)
+            if extracted_text is None and isinstance(parsed_json, dict):
+                # 如果是 JSON 字典但完全提不出来任何像样的正文，则标记内容异常
+                keys_preview = list(parsed_json.keys())[:5]
+                extracted_text = f"【内容生成异常】模型未按要求返回章节正文，疑似产生了输出漂移或复读了前置任务配置。建议重新生成。\n（提取出的异常元数据键名：{keys_preview}）"
         except Exception:
             parsed_json = None
 
@@ -909,6 +913,17 @@ class PipelineOrchestrator:
                     nested = PipelineOrchestrator._extract_text(value.get(key))
                     if nested:
                         return nested
+            
+            # Fallback 策略：在所有值中寻找内容最长的字符串，且认为只有长度大于200个字的才是真正的正文
+            max_len = 0
+            best_str = None
+            for v in value.values():
+                if isinstance(v, str) and len(v) > max_len:
+                    max_len = len(v)
+                    best_str = v
+            if best_str and max_len > 200:
+                return best_str
+
             return None
         if isinstance(value, list):
             for item in value:

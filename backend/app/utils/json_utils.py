@@ -22,8 +22,14 @@ def unwrap_markdown_json(raw_text: str) -> str:
         if candidate:
             return candidate
 
+    # 判断是否已经是一个完整的 JSON
+    if (trimmed.startswith("{") and trimmed.endswith("}")) or (trimmed.startswith("[") and trimmed.endswith("]")):
+        return trimmed
+
+    # 尝试暴力截取时，必须首先确保截取的部分是合法 JSON 才能应用截取
     json_start_candidates = [idx for idx in (trimmed.find("{"), trimmed.find("[")) if idx != -1]
     if json_start_candidates:
+        import json
         start_idx = min(json_start_candidates)
         closing_brace = trimmed.rfind("}")
         closing_bracket = trimmed.rfind("]")
@@ -31,7 +37,11 @@ def unwrap_markdown_json(raw_text: str) -> str:
         if end_idx != -1 and end_idx > start_idx:
             candidate = trimmed[start_idx : end_idx + 1].strip()
             if candidate:
-                return candidate
+                try:
+                    json.loads(candidate)
+                    return candidate  # 只有成功解析才能确定它是 JSON，否则返回原始文本
+                except json.JSONDecodeError:
+                    pass
 
     return trimmed
 
