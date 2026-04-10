@@ -1,5 +1,6 @@
 # AIMETA P=小说API_项目和章节管理|R=小说CRUD_章节管理|NR=不含内容生成|E=route:GET_POST_/api/novels/*|X=http|A=小说CRUD_章节|D=fastapi,sqlalchemy|S=db|RD=./README.ai
 import json
+import json_repair
 import logging
 from typing import Dict, List
 
@@ -184,8 +185,10 @@ async def converse_with_concept(
     try:
         normalized = unwrap_markdown_json(llm_response)
         sanitized = sanitize_json_like_text(normalized)
-        parsed = json.loads(sanitized)
-    except json.JSONDecodeError as exc:
+        parsed = json_repair.loads(sanitized)
+        if not isinstance(parsed, dict):
+            raise ValueError(f"解析结果不是有效的 JSON 对象, 得到类型: {type(parsed)}")
+    except Exception as exc:
         logger.exception(
             "Failed to parse concept converse response: project_id=%s user_id=%s error=%s\nOriginal response: %s\nNormalized: %s\nSanitized: %s",
             project_id,
@@ -271,8 +274,10 @@ async def generate_blueprint(
     blueprint_normalized = unwrap_markdown_json(blueprint_raw)
     blueprint_sanitized = sanitize_json_like_text(blueprint_normalized)
     try:
-        blueprint_data = json.loads(blueprint_sanitized)
-    except json.JSONDecodeError as exc:
+        blueprint_data = json_repair.loads(blueprint_sanitized)
+        if not isinstance(blueprint_data, dict):
+             raise ValueError(f"解析结果不是有效的 JSON 对象, 得到类型: {type(blueprint_data)}")
+    except Exception as exc:
         logger.error(
             "项目 %s 蓝图生成 JSON 解析失败: %s\n原始响应: %s\n标准化后: %s\n清洗后: %s",
             project_id,
